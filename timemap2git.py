@@ -4,7 +4,7 @@ import sys, getopt, requests, datetime
 
 config = {
 	'verbose' : False,
-	'committer_email' : 'donotreply@localhost',
+	'committer' : '<donotreply@localhost>',
 	'branch' : 'master'
 }
 persist = {
@@ -16,22 +16,24 @@ def help():
 	sys.stderr.write("Usage: %s [OPTION]... URL\n" % sys.argv[0])
 	sys.stderr.write("Download web archive history for URL to be piped to `git fast-import'.\n")
 	sys.stderr.write("\n")
-	sys.stderr.write("  -h, --help                  display this help message\n")
-	sys.stderr.write("  -v, --verbose               list GET requests on stderr\n")
-	sys.stderr.write("  -b, --branch=REF            branch to make the commits on\n")
-	sys.stderr.write("                              defaults to master\n")
-	sys.stderr.write("  -e, --committer-email=EMAIL address to list as committer\n")
-	sys.stderr.write("                              defaults to %s\n" % config['committer_email'])
-	sys.stderr.write("  -s, --since=DATE            ignore information prior to DATE\n")
-	sys.stderr.write("  -p, --parent=COMMIT         give the 1st commit this parent\n")
-	#sys.stderr.write("                              defaults to the current branch value\n")
-	sys.stderr.write("                              without -p the 1st commit will have no parent\n")
+	sys.stderr.write("  -h, --help                       display this help message\n")
+	sys.stderr.write("  -v, --verbose                    list GET requests on stderr\n")
+	sys.stderr.write("  -b, --branch=REF                 branch to make the commits on\n")
+	sys.stderr.write("                                   defaults to master\n")
+	sys.stderr.write("  -c, --committer='[NAME ]<EMAIL>' whom to list as committer\n")
+	sys.stderr.write("                                   defaults to '%s'\n" % config['committer'])
+	sys.stderr.write("  -a, --author='[NAME ]<EMAIL>'    whom to list as author\n")
+	sys.stderr.write("                                   defaults to committer\n")
+	sys.stderr.write("  -s, --since=DATE                 ignore information prior to DATE\n")
+	sys.stderr.write("  -p, --parent=COMMIT              give the 1st commit this parent\n")
+	#sys.stderr.write("                                   defaults to the current branch value\n")
+	sys.stderr.write("                                   without -p the 1st commit will have no parent\n")
 
 
 def main(argv):
 	global config
 	try:
-		opts, args = getopt.getopt(argv,"hvb:e:s:p:",["help","verbose","branch=","committer-email=","since=","parent="])
+		opts, args = getopt.getopt(argv,"hvb:c:a:s:p:",["help","verbose","branch=","committer=","author=","since=","parent="])
 	except getopt.GetoptError:
 		help()
 		sys.exit(2)
@@ -43,8 +45,10 @@ def main(argv):
 			config['verbose'] = True
 		elif opt in ("-b", "--branch"):
 			config['branch'] = arg
-		elif opt in ("-e", "--committer-email"):
-			config['committer_email'] = arg
+		elif opt in ("-c", "--committer"):
+			config['committer'] = arg
+		elif opt in ("-a", "--author"):
+			config['author'] =  arg
 		elif opt in ("-s", "--since"):
 			since = None
 			for fmt in (
@@ -73,6 +77,10 @@ def main(argv):
 def parseDatetime(str):
 	str = str.replace("Z","+0000")
 	return datetime.datetime.strptime(str, "%Y-%m-%dT%H:%M:%S%z")
+
+def localZ():
+	minutes = round((datetime.datetime.now() - datetime.datetime.utcnow()).total_seconds() / 60)
+	return "%0+.2i%0.2i" % (minutes / 60, minutes % 60)
 
 def uriToPath(uri):
 	if uri[-1] == "/":
@@ -117,7 +125,11 @@ def processMemento(date, uri):
 	r = get(uri)
 	print('commit ' + config['branch'])
 	print('mark :' + str(persist['mark']))
-	print('committer <' + config['committer_email'] + '> ' + date.strftime("%s %z"))
+	if 'author' in config:
+		print('author ' + config['author'] + ' ' + date.dtrftime("%s %z"))
+	else:
+		print('author ' + config['committer'] + ' ' + date.strftime("%s %z"))
+	print('committer ' + config['committer'] +' ' + datetime.datetime.now().strftime("%s " + localZ()))
 	print('data 0')
 	if persist['mark'] > 1:
 		print('from :' + str(persist['mark'] - 1))
