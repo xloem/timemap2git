@@ -9,7 +9,8 @@ config = {
 }
 persist = {
 	'mark' : 1,
-	'session' : requests.Session()
+	'session' : requests.Session(),
+	'checkpoint' : True
 }
 
 def help():
@@ -92,15 +93,20 @@ def get(url):
 		sys.stderr.write("GET %s\n" % url)
 	while True:
 		try:
-			return persist['session'].get(url, allow_redirects=False)
+			r = persist['session'].get(url, allow_redirects=False)
+			persist['lastresponse'] = r
+			r.raise_for_status()
+			return r
 		except requests.exceptions.RequestException as e:
 			sys.stderr.write("%s\n" % e)
+			if 'checkpoint' not in persist:
+				persist['checkpoint'] = True
+				print('checkpoint\n')
 			pass
 		
 
 def processTimeMap(url):
 	r = get(url)
-	r.raise_for_status()
 	timemap = r.json()
 	if 'mementos' in timemap:
 		mementos=timemap['mementos']['list']
@@ -139,6 +145,9 @@ def processMemento(date, uri):
 
 	processResponseData(r)
 
+	if 'checkpoint' in persist:
+		del persist['checkpoint']
+
 def processResponseData(r):
 	if r.is_redirect:
 		redirect = r.headers['Location']
@@ -170,4 +179,8 @@ def processResponseData(r):
 		sys.stdout.buffer.write(r.content)
 
 if __name__ == "__main__":
-	main(sys.argv[1:])
+	try:
+		main(sys.argv[1:])
+	except KeyError as e:
+		sys.stdout.write("%s\n%s\n" % (persist['lastresponse'], e))
+		raise(e)
