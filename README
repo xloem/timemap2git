@@ -12,4 +12,5 @@ Example:
 	# make a git archive of the entire history of www.google.com (the * includes sub-urls in archive.org)
 	mkdir google-history
 	cd google-history
+	git init
 	../timemap2git.py -v http://www.google.com/* | git fast-import
