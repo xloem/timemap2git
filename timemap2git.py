@@ -85,7 +85,8 @@ def get(url):
 	while True:
 		try:
 			return persist['session'].get(url, allow_redirects=False)
-		except requests.exceptions.ConnectionError:
+		except requests.exceptions.RequestException as e:
+			sys.stderr.write("%s\n" % e)
 			pass
 		
 
